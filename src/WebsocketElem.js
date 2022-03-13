@@ -3,6 +3,7 @@ import useWebSocket, { ReadyState } from "react-use-websocket";
 import { WebSocketBus } from "vtubestudio";
 import { ApiClient } from "vtubestudio";
 import { Plugin } from "vtubestudio";
+import { VTS_REQUESTS } from "./constants";
 import IntervalChecker from "./IntervalChecker";
 
 const WebsocketElem = () => {
@@ -10,6 +11,7 @@ const WebsocketElem = () => {
   const [messageHistory, setMessageHistory] = useState([]);
   const [showTimer, setShowTimer] = useState(true);
   const [authToken, setAuthToken] = useState(null);
+  const [hotKeyToggles, setHotKeyToggles] = useState([]);
 
   const { sendMessage, lastMessage, readyState } = useWebSocket(socketUrl, {
     onMessage: (data) => {
@@ -47,7 +49,6 @@ const WebsocketElem = () => {
       const parsedData = JSON.parse(lastMessage.data);
       console.log(parsedData);
       if (parsedData.messageType === "AuthenticationTokenResponse") {
-        // clearInterval(interval);
         console.log("Eyoooo");
         setShowTimer(false);
         console.log(parsedData.data.authenticationToken);
@@ -55,19 +56,25 @@ const WebsocketElem = () => {
       } else if (parsedData.messageType === "AuthenticationResponse") {
         console.log("authenticated for the session");
         sendMessage(`{
-            "apiName": "VTubeStudioPublicAPI",
-            "apiVersion": "1.0",
-            "requestID": "SomeID",
-            "messageType": "ArtMeshListRequest"
+          "apiName": "VTubeStudioPublicAPI",
+          "apiVersion": "1.0",
+          "requestID": "SomeID",
+          "messageType": "AvailableModelsRequest"
         }`);
-      } else if (parsedData.messageType === "VTSFolderInfoResponse") {
-        console.log("EYOOOOO BRR");
+      } else if (parsedData.messageType === "AvailableModelsResponse") {
+        console.log("Yeah we got responses!");
         sendMessage(`{
-            "apiName": "VTubeStudioPublicAPI",
-            "apiVersion": "1.0",
-            "requestID": "SomeID",
-            "messageType": "VTSFolderInfoRequest"
-        }`);
+          "apiName": "VTubeStudioPublicAPI",
+          "apiVersion": "1.0",
+          "requestID": "SomeID",
+          "messageType": "HotkeysInCurrentModelRequest"
+         
+      }`);
+      } else if (parsedData.messageType === "HotkeysInCurrentModelResponse") {
+        console.log("True Data", parsedData.data.availableHotkeys);
+        setHotKeyToggles(parsedData.data.availableHotkeys);
+      } else if (parsedData.messageType === "HotkeyTriggerResponse") {
+        console.log("derp We have Triggred a hotkey", parsedData);
       }
     }
   }, [messageHistory.length]);
@@ -104,12 +111,29 @@ const WebsocketElem = () => {
     }`);
   }, [authToken]);
 
+  const togglePats = () => {
+    console.log("triggered");
+    console.log(hotKeyToggles, hotKeyToggles[0].hotkeyID, hotKeyToggles.length);
+    if (hotKeyToggles.length >= 0) {
+      console.log("mesasgesend");
+      sendMessage(`{
+        "apiName": "VTubeStudioPublicAPI",
+        "apiVersion": "1.0",
+        "requestID": "SomeID",
+        "messageType": "HotkeyTriggerRequest",
+        "data": {
+          "hotkeyID": "${hotKeyToggles[0].hotkeyID}"
+        }
+      }`);
+    }
+  };
   return (
     <div>
       WebsocketElem
       {showTimer && (
         <IntervalChecker sendMessage={sendMessage} triggerFn={() => {}} />
       )}
+      <button onClick={togglePats}> Toggle Headpats</button>
     </div>
   );
 };
